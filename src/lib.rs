@@ -59,32 +59,59 @@ unsafe impl<'a, T: ?Sized + 'static> RefClass<'a> for *mut T {
     }
 }
 
-unsafe impl<'a, A, B> HasRefClass<'a> for (A, B)
-where
-    A: HasRefClass<'a>,
-    B: HasRefClass<'a>,
-{
-    type Class = (<A as HasRefClass<'a>>::Class, <B as HasRefClass<'a>>::Class);
-    unsafe fn into_class(self) -> Self::Class {
-        (self.0.into_class(), self.1.into_class())
-    }
-}
-unsafe impl<'a, A, B> RefClass<'a> for (A, B)
-where
-    A: RefClass<'a>,
-    B: RefClass<'a>,
-{
-    type RefMut = (<A as RefClass<'a>>::RefMut, <B as RefClass<'a>>::RefMut);
-    type RefConst = (<A as RefClass<'a>>::RefConst, <B as RefClass<'a>>::RefConst);
+macro_rules! tuple_impls {
+    ($($($T:ident),*;)*) => {$(
+        unsafe impl<'a, $($T),*> HasRefClass<'a> for ($($T,)*)
+        where
+            $($T: HasRefClass<'a>,)*
+        {
+            type Class = ($(<$T as HasRefClass<'a>>::Class,)*);
+            unsafe fn into_class(self) -> Self::Class {
+                #[allow(non_snake_case)]
+                let ($($T,)*) = self;
+                ($($T.into_class(),)*)
+            }
+        }
+        unsafe impl<'a, $($T),*> RefClass<'a> for ($($T,)*)
+        where
+            $($T: RefClass<'a>,)*
+        {
+            type RefMut = ($(<$T as RefClass<'a>>::RefMut,)*);
+            type RefConst = ($(<$T as RefClass<'a>>::RefConst,)*);
 
-    unsafe fn reborrow_mut(self) -> Self::RefMut {
-        (self.0.reborrow_mut(), self.1.reborrow_mut())
-    }
-    unsafe fn reborrow_const(self) -> Self::RefConst {
-        (self.0.reborrow_const(), self.1.reborrow_const())
-    }
+            unsafe fn reborrow_mut(self) -> Self::RefMut {
+                #[allow(non_snake_case)]
+                let ($($T,)*) = self;
+                ($($T.reborrow_mut(),)*)
+            }
+            unsafe fn reborrow_const(self) -> Self::RefConst {
+                #[allow(non_snake_case)]
+                let ($($T,)*) = self;
+                ($($T.reborrow_const(),)*)
+            }
+        }
+        unsafe impl<$($T),*> SharedRef for *mut ($($T,)*) {}
+    )*};
 }
-unsafe impl<A: SharedRef, B: SharedRef> SharedRef for *mut (A, B) {}
+
+tuple_impls! {
+    A;
+    A, B;
+    A, B, C;
+    A, B, C, D;
+    A, B, C, D, E;
+    A, B, C, D, E, F;
+    A, B, C, D, E, F, G;
+    A, B, C, D, E, F, G, H;
+    A, B, C, D, E, F, G, H, I;
+    A, B, C, D, E, F, G, H, I, J;
+    A, B, C, D, E, F, G, H, I, J, K;
+    A, B, C, D, E, F, G, H, I, J, K, L;
+    A, B, C, D, E, F, G, H, I, J, K, L, M;
+    A, B, C, D, E, F, G, H, I, J, K, L, M, N;
+    A, B, C, D, E, F, G, H, I, J, K, L, M, N, O;
+    A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P;
+}
 
 pub struct OwningRef<O, T> {
     owner: ManuallyDrop<O>,
